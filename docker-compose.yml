@@ -1,0 +1,94 @@
+version: "3.2"
+services:
+    es01:
+        image: docker.elastic.co/elasticsearch/elasticsearch:7.10.0
+        container_name: es01
+        ports:
+            - "9200:9200"
+        environment:
+            - node.name=es01
+            - cluster.name=superdesk-cluster
+            - discovery.seed_hosts=es02,es03
+            - cluster.initial_master_nodes=es01,es02,es03
+            - bootstrap.memory_lock=true
+            - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+        ulimits:
+            memlock:
+                soft: -1
+                hard: -1
+        volumes:
+            - ./volumes/es01:/usr/share/elasticsearch/data
+        networks:
+            - elastic
+
+    es02:
+        image: docker.elastic.co/elasticsearch/elasticsearch:7.10.0
+        container_name: es02
+        ports:
+            - "9201:9201"
+        environment:
+            - node.name=es02
+            - cluster.name=superdesk-cluster
+            - discovery.seed_hosts=es01,es03
+            - cluster.initial_master_nodes=es01,es02,es03
+            - bootstrap.memory_lock=true
+            - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+        ulimits:
+            memlock:
+                soft: -1
+                hard: -1
+        volumes:
+            - ./volumes/es02:/usr/share/elasticsearch/data
+        networks:
+            - elastic
+  
+    es03:
+        image: docker.elastic.co/elasticsearch/elasticsearch:7.10.0
+        container_name: es03
+        ports:
+            - "9202:9202"
+        environment:
+            - node.name=es03
+            - cluster.name=superdesk-cluster
+            - discovery.seed_hosts=es01,es02
+            - cluster.initial_master_nodes=es01,es02,es03
+            - bootstrap.memory_lock=true
+            - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+        ulimits:
+            memlock:
+                soft: -1
+                hard: -1
+        volumes:
+            - ./volumes/es03:/usr/share/elasticsearch/data
+        networks:
+            - elastic
+
+    apm01:
+        image: docker.elastic.co/apm/apm-server:7.10.0
+        environment:
+            - output.elasticsearch.hosts=["es01:9200"]
+        ports:
+            - "8200:8200"
+        volumes:
+            - ./apm-server.docker.yml:/usr/share/apm-server/apm-server.yml:ro
+        user: apm-server
+        networks:
+            - elastic
+        depends_on:
+            - es01
+
+    kib01:
+        image: docker.elastic.co/kibana/kibana:7.10.0
+        ports:
+            - "5601:5601"
+        environment:
+            - ELASTICSEARCH_URL=http://es01:9200
+            - ELASTICSEARCH_HOSTS=http://es01:9200
+        networks:
+            - elastic
+        depends_on:
+            - es01
+
+networks:
+  elastic:
+    driver: bridge
